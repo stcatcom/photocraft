@@ -274,6 +274,15 @@ pub fn handle_keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
         handled[k] = true;
         match ev {
             egui::Event::Text(s) | egui::Event::Paste(s) => insert(app, s),
+            // IME (Japanese etc.): the committed string is inserted; the preedit is only displayed.
+            egui::Event::Ime(egui::ImeEvent::Commit(s)) => {
+                ctx.data_mut(|d| d.remove::<String>(preedit_id()));
+                insert(app, s);
+            }
+            egui::Event::Ime(egui::ImeEvent::Preedit { text, .. }) => {
+                ctx.data_mut(|d| d.insert_temp(preedit_id(), text.clone()));
+            }
+            egui::Event::Ime(_) => {}
             egui::Event::Copy | egui::Event::Cut => {
                 if a < b {
                     ctx.copy_text(text.chars().skip(a).take(b - a).collect());
@@ -363,6 +372,11 @@ pub fn handle_keys(app: &mut PhotocraftApp, ctx: &egui::Context) -> bool {
     app.ui.text_edit.is_some()
 }
 
+/// Key for the IME composition string (preedit) in egui's temp data.
+fn preedit_id() -> egui::Id {
+    egui::Id::new("photocraft-type-preedit")
+}
+
 /// End the editing session. A new layer left empty is deleted; a new layer is named after its text.
 pub fn commit(app: &mut PhotocraftApp) {
     let Some(ed) = app.ui.text_edit.take() else { return };
@@ -424,7 +438,34 @@ pub fn draw_overlay(app: &mut PhotocraftApp, painter: &egui::Painter, xf: &ViewX
                 painter.add(egui::Shape::convex_polygon(vec![scr(x0, top), scr(x1, top), scr(x1, bot), scr(x0, bot)], fill, Stroke::NONE));
             }
         }
-    } else {
+    }
+    // Enable the OS IME at the caret, and show the composition string (preedit) next to it.
+    {
+        let (x, top, bot) = l.caret(byte_of(&text, ed.caret));
+        let (x, top, bot) = if l.lines.is_empty() { (0.0, -(12.0 * l.px_per_pt.max(1.0)), 3.0) } else { (x, top, bot) };
+        let (p0, p1) = (scr(x, top), scr(x, bot));
+        let cursor_rect = egui::Rect::from_two_pos(p0, p1).expand2(egui::vec2(1.0, 0.0));
+        let ctx = painter.ctx();
+        ctx.output_mut(|o| {
+            o.ime = Some(egui::output::IMEOutput {
+                purpose: egui::IMEPurpose::Normal,
+                rect: painter.clip_rect(),
+                cursor_rect,
+                should_interrupt_composition: false,
+            })
+        });
+        let preedit = ctx.data(|d| d.get_temp::<String>(preedit_id())).unwrap_or_default();
+        if !preedit.is_empty() {
+            let size = (p1.y - p0.y).abs().clamp(12.0, 72.0) * 0.8;
+            let galley = painter.layout_no_wrap(preedit, egui::FontId::proportional(size), Color32::BLACK);
+            let r = egui::Rect::from_min_size(p0, galley.size()).expand(2.0);
+            painter.rect_filled(r, 2.0, Color32::from_rgb(255, 255, 230));
+            painter.galley(p0, galley, Color32::BLACK);
+            painter.line_segment([r.left_bottom(), r.right_bottom()], Stroke::new(1.0, Color32::BLACK));
+            return;
+        }
+    }
+    if a >= b {
         // Blinking caret (Photoshop's ~0.53 s rhythm), solid while dragging.
         let time = painter.ctx().input(|i| i.time);
         if ed.dragging || (time * 1000.0 / 530.0) as i64 % 2 == 0 {

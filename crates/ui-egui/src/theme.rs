@@ -283,6 +283,12 @@ pub fn install_fonts(ctx: &egui::Context) {
     add(&mut fonts, "JetBrainsMono", include_bytes!("../../../assets/fonts/JetBrainsMono-Regular.ttf"));
     fonts.families.entry(FontFamily::Proportional).or_default().insert(0, "Inter".to_owned());
     fonts.families.entry(FontFamily::Monospace).or_default().insert(0, "JetBrainsMono".to_owned());
+    // Japanese (CJK) fallback from the system fonts, last in both stacks.
+    if let Some(data) = load_cjk_font() {
+        fonts.font_data.insert("CJK".to_owned(), Arc::new(data));
+        fonts.families.entry(FontFamily::Proportional).or_default().push("CJK".to_owned());
+        fonts.families.entry(FontFamily::Monospace).or_default().push("CJK".to_owned());
+    }
     // Named weights fall back to the default stack for missing glyphs.
     let fallback: Vec<String> = fonts.families[&FontFamily::Proportional].clone();
     for (fam, primary) in [("medium", "Inter-Medium"), ("semibold", "Inter-SemiBold")] {
@@ -291,6 +297,30 @@ pub fn install_fonts(ctx: &egui::Context) {
         fonts.families.insert(FontFamily::Name(fam.into()), stack);
     }
     ctx.set_fonts(fonts);
+}
+
+/// First installed Japanese system font (file path, face index in a .ttc). None on the web.
+#[cfg(not(target_arch = "wasm32"))]
+fn load_cjk_font() -> Option<FontData> {
+    let windir = std::env::var("WINDIR").unwrap_or_else(|_| r"C:\Windows".to_owned());
+    let candidates: [(String, u32); 6] = [
+        (format!(r"{windir}\Fonts\YuGothM.ttc"), 0),
+        (format!(r"{windir}\Fonts\meiryo.ttc"), 0),
+        (format!(r"{windir}\Fonts\msgothic.ttc"), 0),
+        ("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc".to_owned(), 0),
+        ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc".to_owned(), 0),
+        ("/usr/share/fonts/noto-cjk/NotoSansCJK-Regular.ttc".to_owned(), 0),
+    ];
+    candidates.into_iter().find_map(|(path, index)| {
+        let mut data = FontData::from_owned(std::fs::read(path).ok()?);
+        data.index = index;
+        Some(data)
+    })
+}
+
+#[cfg(target_arch = "wasm32")]
+fn load_cjk_font() -> Option<FontData> {
+    None
 }
 
 pub fn medium(size: f32) -> FontId {
