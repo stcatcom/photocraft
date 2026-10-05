@@ -22,6 +22,15 @@
   <img alt="Status: early alpha" src="https://img.shields.io/badge/status-early%20alpha-d69e2e?style=flat-square">
 </p>
 
+> [!IMPORTANT]
+> **このリポジトリは [storytold/photocraft](https://github.com/storytold/photocraft) のフォークで、日本語入力に対応させたものです。**
+> *This fork adds Japanese text input and display.*
+>
+> - **日本語表示**：メニューやレイヤー名などの画面表示に、OSの日本語フォント（游ゴシック／メイリオ／MS ゴシック、macOSはヒラギノ、LinuxはNoto Sans CJK）を使います
+> - **日本語入力（IME）**：テキストツールで IME による入力ができます。変換中の文字はキャレット位置に表示されます
+> - **テキストレイヤー**：日本語フォントへの自動フォールバックと、日本語の改行処理（単語区切り）に対応しています
+> - 画面の文言は英語のままです。Web版では日本語フォントを読み込みません
+
 <p align="center">
   <a href="https://discord.gg/artcraft"><img alt="Join the ArtCraft community on Discord" src="https://img.shields.io/badge/Join%20us%20on%20Discord-5865F2?style=for-the-badge&logo=discord&logoColor=white" height="40"></a>
 </p>
