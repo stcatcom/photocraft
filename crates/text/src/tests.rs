@@ -97,6 +97,17 @@ fn box_text_wraps_inside_width() {
 }
 
 #[test]
+fn box_text_wraps_dictionary_scripts() {
+    // Thai has no spaces: break opportunities come from the ICU4X dictionary, which parley only
+    // loads with its `complex-scripts` feature (the same data segments Chinese/Japanese words).
+    let mut e = TextEngine::new();
+    let mut t = point("สวัสดีครับยินดีต้อนรับสู่ประเทศไทย", 12.0);
+    t.shape = TextShape::Box { x: 0.0, y: 0.0, width: 60.0, height: 1000.0 };
+    let l = e.layout(&t, 72.0);
+    assert!(l.lines.len() >= 2, "{}", l.lines.len());
+}
+
+#[test]
 fn alignment_point_and_box() {
     let mut e = TextEngine::new();
     let c = e.layout(&with_para(point("Centered", 20.0), ParagraphStyle { align: TextAlign::Center, ..Default::default() }), 72.0);
